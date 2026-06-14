@@ -4,88 +4,102 @@
 #  The comments point out WHAT is different from SQL/Neo4j.
 # =============================================================
 
-# 1) POLYMORPHISM — ask for `adventurer`, get warriors, mages,
-#    and rogues back automatically. There is no UNION here and
-#    no "type" column to filter on. The type system does it.
+# 1) POLYMORPHISM — ask for `character`, get hobbits, elves,
+#    dwarves, men and wizards back automatically. No UNION,
+#    no "race" column to filter on. The type system does it.
 match
-$a isa adventurer, has name $n, has level $lvl;
+$c isa character, has name $n, has age $a;
 fetch {
   "name": $n,
-  "level": $lvl
+  "age":  $a
 };
 
 
-# 2) Same query, narrowed to one subtype. Swap `mage` for
-#    `warrior` or `rogue` to feel the hierarchy.
+# 2) Same query, narrowed to one subtype. Swap `wizard` for
+#    `elf`, `dwarf`, `man` or `hobbit` to feel the hierarchy.
 match
-$a isa mage, has name $n, has element $e;
+$c isa wizard, has name $n, has colour $col;
 fetch {
-  "name": $n,
-  "element": $e
+  "wizard": $n,
+  "colour": $col
 };
 
 
-# 3) The N-ARY RELATION. One `quest` object connects several
-#    hunters, a monster, and a place. In SQL this is 3+ join
-#    tables; here it is one pattern.
+# 3) The N-ARY RELATION. One `quest` object connects the
+#    bearer, the objective, and the destination. In SQL this is
+#    several join tables; here it is one pattern.
 match
-quest (hunter: $h, target: $m, site: $l), has bounty $b;
-$h has name $hn;
-$m has name $mn;
-$l has name $ln;
+quest (bearer: $b, objective: $o, destination: $d), has completed $done;
+$b has name $bn;
+$o has name $on;
+$d has name $dn;
 fetch {
-  "hunter":   $hn,
-  "monster":  $mn,
-  "where":    $ln,
-  "bounty":   $b
+  "bearer":      $bn,
+  "carrying":    $on,
+  "destination": $dn,
+  "completed":   $done
 };
 
 
-# 4) NESTED FETCH — for each guild, pull its members as a list.
-#    Note the sub-query inside the [ ... ] producing a JSON array.
+# 4) NESTED FETCH — list the whole Fellowship as a JSON array.
+#    The sub-query inside [ ... ] produces the list.
 match
-$g isa guild, has name $gn;
+$f isa fellowship;
 fetch {
-  "guild": $gn,
-  "members": [
+  "the_fellowship": [
     match
-    membership (member: $a, guild: $g);
-    $a has name $an, has level $lvl;
-    fetch {
-      "name":  $an,
-      "level": $lvl
-    };
+    $f (member: $m);
+    $m has name $mn;
+    fetch { "member": $mn };
   ]
 };
 
 
-# 5) A pattern with negation: adventurers who are NOT in any guild.
+# 5) NEGATION — characters who are NOT in the Fellowship
+#    (Saruman, Theoden, Elrond, Galadriel).
 match
-$a isa adventurer, has name $n;
-not { membership (member: $a); };
+$c isa character, has name $n;
+not { fellowship (member: $c); };
 fetch {
-  "guildless": $n
+  "not_in_fellowship": $n
 };
 
 
-# 6) FUNCTION / reasoning (TypeDB 3.x's headline feature).
+# 6) For each realm, who swears allegiance to it? (nested fetch)
+match
+$r isa realm, has name $rn;
+fetch {
+  "realm": $rn,
+  "sworn_to_it": [
+    match
+    allegiance (subject: $c, realm: $r);
+    $c has name $cn;
+    fetch { "subject": $cn };
+  ]
+};
+
+
+# 7) FUNCTION / reasoning (TypeDB 3.x's headline feature).
 #    Define this in a SCHEMA write transaction (it's part of the
-#    schema), commit, then call it from a read query below.
+#    schema), commit, then call it from the read query below.
+#    "countrymen" = anyone who shares a realm allegiance with $c.
+#    Aragorn's countryman is Boromir (both sworn to Gondor) — a
+#    fact never stored directly, derived on demand.
 #    NOTE: functions are the newest, fastest-moving part of the
 #    syntax — if this errors, check the live docs link in README.
 define
-fun guildmates($a: adventurer) -> { adventurer }:
+fun countrymen($c: character) -> { character }:
   match
-    membership (member: $a,    guild: $g);
-    membership (member: $mate, guild: $g);
-    not { $mate is $a; };
-  return { $mate };
+    allegiance (subject: $c,     realm: $r);
+    allegiance (subject: $other, realm: $r);
+    not { $other is $c; };
+  return { $other };
 
-# ...then, in a read transaction, find Brae's guildmates:
+# ...then, in a read transaction, find Aragorn's countrymen:
 match
-$brae isa adventurer, has name "Brae";
-$mate in guildmates($brae);
+$aragorn isa character, has name "Aragorn";
+$mate in countrymen($aragorn);
 $mate has name $mn;
 fetch {
-  "guildmate": $mn
+  "countryman": $mn
 };

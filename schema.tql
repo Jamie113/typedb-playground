@@ -1,5 +1,5 @@
 # =============================================================
-#  Adventurers' Guild — a made-up world to learn TypeDB 3.x
+#  Middle-earth — a Lord of the Rings world for learning TypeDB 3.x
 # =============================================================
 #  Load this FIRST (it defines the shape of the data).
 #  In TypeDB Studio: open this file, pick the "schema" write
@@ -10,66 +10,67 @@ define
 
 # --- attributes (a value, owned by entities/relations) -------
 attribute name,      value string;
-attribute level,     value integer;
-attribute gold,      value integer;
-attribute element,   value string;     # mages only
-attribute weapon,    value string;     # warriors only
-attribute danger,    value integer;    # how nasty a monster is
+attribute age,       value integer;
+attribute title,     value string;     # men only (King of Gondor, ...)
+attribute colour,    value string;     # wizards only (grey, white)
+attribute weapon,    value string;     # elves & dwarves
 attribute terrain,   value string;
-attribute bounty,    value integer;    # quest reward
 attribute completed, value boolean;
-attribute founded,   value datetime;
 
 # --- entities ------------------------------------------------
-# adventurer is the supertype. warrior/mage/rogue inherit
-# everything it owns and every role it plays. This is the bit
-# SQL can't do cleanly: query `adventurer` and you get all three.
-entity adventurer,
+# `character` is the supertype. The five races inherit everything
+# it owns and every role it plays. This is the bit SQL can't do
+# cleanly: query `character` and you get all five races back.
+entity character,
   owns name @key,
-  owns level,
-  owns gold,
-  plays membership:member,
-  plays party:companion,
+  owns age,
+  plays fellowship:member,
   plays friendship:friend,
-  plays quest:hunter;
+  plays allegiance:subject,
+  plays quest:bearer,
+  plays battle:combatant;
 
-entity warrior, sub adventurer, owns weapon;
-entity mage,    sub adventurer, owns element;
-entity rogue,   sub adventurer;
+entity hobbit, sub character;
+entity elf,    sub character, owns weapon;
+entity dwarf,  sub character, owns weapon;
+entity man,    sub character, owns title;
+entity wizard, sub character, owns colour;
 
-entity guild,
-  owns name @key,
-  owns founded,
-  plays membership:guild;
-
-entity monster,
-  owns name @key,
-  owns danger,
-  plays quest:target;
-
-entity location,
+entity realm,
   owns name @key,
   owns terrain,
-  plays quest:site;
+  plays allegiance:realm,
+  plays quest:destination,
+  plays battle:site;
+
+entity artifact,
+  owns name @key,
+  plays quest:objective;
 
 # --- relations -----------------------------------------------
 # A relation is a real object, not a join table. It can own
 # attributes and can connect MORE THAN TWO things at once.
-relation membership,
-  relates member,
-  relates guild;
 
-relation party,
-  relates companion @card(1..);        # one or more adventurers
+# The Fellowship of the Ring: one object, nine members.
+relation fellowship,
+  relates member @card(1..);
 
 relation friendship,
-  relates friend @card(2..2);          # exactly two friends
+  relates friend @card(2..2);          # exactly two (Frodo & Sam)
 
-# The star of the show: a single quest object ties together
-# the hunters, the monster, and the place — a true N-ary relation.
+relation allegiance,
+  relates subject,
+  relates realm;
+
+# The N-ary star of the show: a single quest ties together
+# the bearer, the thing carried, and where it must go.
 relation quest,
-  relates hunter @card(1..),
-  relates target,
-  relates site,
-  owns bounty,
+  relates bearer @card(1..),
+  relates objective,
+  relates destination,
   owns completed;
+
+relation battle,
+  relates combatant @card(1..),
+  relates site,
+  owns name;
