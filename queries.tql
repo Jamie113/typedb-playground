@@ -48,7 +48,7 @@ $f isa fellowship;
 fetch {
   "the_fellowship": [
     match
-    $f (member: $m);
+    $f links (member: $m);     # 3.x: `links` binds an already-declared relation var
     $m has name $mn;
     fetch { "member": $mn };
   ]
@@ -98,7 +98,7 @@ fun countrymen($c: character) -> { character }:
 # ...then, in a read transaction, find Aragorn's countrymen:
 match
 $aragorn isa character, has name "Aragorn";
-$mate in countrymen($aragorn);
+let $mate in countrymen($aragorn);   # 3.x: `let ... in` binds a function's stream
 $mate has name $mn;
 fetch {
   "countryman": $mn

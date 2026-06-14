@@ -25,6 +25,8 @@ Tolkien's world lines up with TypeDB's three signature ideas almost perfectly:
 | `schema.tql`  | The races as subtypes of `character`; relations (fellowship, friendship, allegiance, quest, battle). |
 | `data.tql`    | Inserting characters/realms, then `match ... insert` to wire up the Fellowship, friendships, allegiances, the Quest. |
 | `queries.tql` | Polymorphic queries, N-ary relations, nested `fetch`, negation, and a `fun` (function/reasoning). |
+| `load.py`     | Loads a `.tql` file over the HTTP API, splitting it into its query blocks: `python3 load.py schema.tql schema`, `python3 load.py data.tql write`. |
+| `q.py`        | Runs a single query: `python3 q.py '<typeql>'` (read), or `--write` / `--schema` to change data/schema. |
 
 ## Run it
 
@@ -40,8 +42,8 @@ docker run --name typedb \
 
 ### 2. Connect
 
-Easiest: download **TypeDB Studio** (the GUI) and connect to `localhost:1729`.
-Create a database (e.g. `middle-earth`). Then, in order:
+**GUI:** download **TypeDB Studio**, connect to `localhost:1729`, create a
+database (e.g. `middle-earth`), then in order:
 
 1. Open `schema.tql` → **schema** write transaction → run → **commit**.
 2. Open `data.tql` → **data** write transaction → run → **commit**.
@@ -50,8 +52,26 @@ Create a database (e.g. `middle-earth`). Then, in order:
 (Query 7 defines a function, so run its `define` block in a **schema**
 transaction and commit before calling it.)
 
-Prefer the terminal? The `typedb console` CLI ships in the same Docker image
-and runs the same `.tql` files.
+**Terminal:** the server image does *not* bundle `typedb console`, so the
+included Python helpers drive the HTTP API on port `8000` instead (stdlib
+only, no deps). After the server is up:
+
+```bash
+curl -s -X POST localhost:8000/v1/databases/middle-earth \
+  -H "Authorization: Bearer $(curl -s -X POST localhost:8000/v1/signin \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"password"}' | sed 's/.*"token":"//;s/".*//')"
+python3 load.py schema.tql schema     # define the schema
+python3 load.py data.tql   write      # insert + wire up the world
+python3 q.py 'match $c isa character, has name $n; fetch { "name": $n };'
+```
+
+> The helpers use TypeDB's default `admin`/`password` credentials — fine for a
+> local throwaway, not for anything exposed.
+
+> **3.11.x syntax note:** calling a function uses `let $x in fun(...)`, and a
+> bound relation variable links its players with `$r links (role: $p)`. The
+> queries in `queries.tql` already use these forms.
 
 ## Stuff to try once it works (this is where the learning is)
 
