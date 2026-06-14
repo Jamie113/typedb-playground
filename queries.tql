@@ -1,0 +1,91 @@
+# =============================================================
+#  Queries to try — run these one at a time in a READ
+#  transaction. Each block is a separate query.
+#  The comments point out WHAT is different from SQL/Neo4j.
+# =============================================================
+
+# 1) POLYMORPHISM — ask for `adventurer`, get warriors, mages,
+#    and rogues back automatically. There is no UNION here and
+#    no "type" column to filter on. The type system does it.
+match
+$a isa adventurer, has name $n, has level $lvl;
+fetch {
+  "name": $n,
+  "level": $lvl
+};
+
+
+# 2) Same query, narrowed to one subtype. Swap `mage` for
+#    `warrior` or `rogue` to feel the hierarchy.
+match
+$a isa mage, has name $n, has element $e;
+fetch {
+  "name": $n,
+  "element": $e
+};
+
+
+# 3) The N-ARY RELATION. One `quest` object connects several
+#    hunters, a monster, and a place. In SQL this is 3+ join
+#    tables; here it is one pattern.
+match
+quest (hunter: $h, target: $m, site: $l), has bounty $b;
+$h has name $hn;
+$m has name $mn;
+$l has name $ln;
+fetch {
+  "hunter":   $hn,
+  "monster":  $mn,
+  "where":    $ln,
+  "bounty":   $b
+};
+
+
+# 4) NESTED FETCH — for each guild, pull its members as a list.
+#    Note the sub-query inside the [ ... ] producing a JSON array.
+match
+$g isa guild, has name $gn;
+fetch {
+  "guild": $gn,
+  "members": [
+    match
+    membership (member: $a, guild: $g);
+    $a has name $an, has level $lvl;
+    fetch {
+      "name":  $an,
+      "level": $lvl
+    };
+  ]
+};
+
+
+# 5) A pattern with negation: adventurers who are NOT in any guild.
+match
+$a isa adventurer, has name $n;
+not { membership (member: $a); };
+fetch {
+  "guildless": $n
+};
+
+
+# 6) FUNCTION / reasoning (TypeDB 3.x's headline feature).
+#    Define this in a SCHEMA write transaction (it's part of the
+#    schema), commit, then call it from a read query below.
+#    NOTE: functions are the newest, fastest-moving part of the
+#    syntax — if this errors, check the live docs link in README.
+define
+fun guildmates($a: adventurer) -> { adventurer }:
+  match
+    membership (member: $a,    guild: $g);
+    membership (member: $mate, guild: $g);
+    not { $mate is $a; };
+  return { $mate };
+
+# ...then, in a read transaction, find Brae's guildmates:
+match
+$brae isa adventurer, has name "Brae";
+$mate in guildmates($brae);
+$mate has name $mn;
+fetch {
+  "guildmate": $mn
+};

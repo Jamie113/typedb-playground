@@ -1,0 +1,75 @@
+# =============================================================
+#  Adventurers' Guild — a made-up world to learn TypeDB 3.x
+# =============================================================
+#  Load this FIRST (it defines the shape of the data).
+#  In TypeDB Studio: open this file, pick the "schema" write
+#  transaction, run it, then commit.
+# =============================================================
+
+define
+
+# --- attributes (a value, owned by entities/relations) -------
+attribute name,      value string;
+attribute level,     value integer;
+attribute gold,      value integer;
+attribute element,   value string;     # mages only
+attribute weapon,    value string;     # warriors only
+attribute danger,    value integer;    # how nasty a monster is
+attribute terrain,   value string;
+attribute bounty,    value integer;    # quest reward
+attribute completed, value boolean;
+attribute founded,   value datetime;
+
+# --- entities ------------------------------------------------
+# adventurer is the supertype. warrior/mage/rogue inherit
+# everything it owns and every role it plays. This is the bit
+# SQL can't do cleanly: query `adventurer` and you get all three.
+entity adventurer,
+  owns name @key,
+  owns level,
+  owns gold,
+  plays membership:member,
+  plays party:companion,
+  plays friendship:friend,
+  plays quest:hunter;
+
+entity warrior, sub adventurer, owns weapon;
+entity mage,    sub adventurer, owns element;
+entity rogue,   sub adventurer;
+
+entity guild,
+  owns name @key,
+  owns founded,
+  plays membership:guild;
+
+entity monster,
+  owns name @key,
+  owns danger,
+  plays quest:target;
+
+entity location,
+  owns name @key,
+  owns terrain,
+  plays quest:site;
+
+# --- relations -----------------------------------------------
+# A relation is a real object, not a join table. It can own
+# attributes and can connect MORE THAN TWO things at once.
+relation membership,
+  relates member,
+  relates guild;
+
+relation party,
+  relates companion @card(1..);        # one or more adventurers
+
+relation friendship,
+  relates friend @card(2..2);          # exactly two friends
+
+# The star of the show: a single quest object ties together
+# the hunters, the monster, and the place — a true N-ary relation.
+relation quest,
+  relates hunter @card(1..),
+  relates target,
+  relates site,
+  owns bounty,
+  owns completed;

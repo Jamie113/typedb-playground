@@ -1,0 +1,87 @@
+# =============================================================
+#  Sample data for the Adventurers' Guild world
+# =============================================================
+#  Load this SECOND, after schema.tql is committed.
+#  Use a "data" write transaction, run, then commit.
+#  Run each section on its own if your client prefers single
+#  queries; they are separated by blank lines for clarity.
+# =============================================================
+
+# --- guilds --------------------------------------------------
+insert
+$g1 isa guild, has name "Ember Lanterns",  has founded 1402-03-12T00:00:00;
+$g2 isa guild, has name "The Quiet Daggers", has founded 1450-11-01T00:00:00;
+
+# --- adventurers (note the subtypes) -------------------------
+insert
+$a1 isa warrior, has name "Brae",   has level 14, has gold 320, has weapon "warhammer";
+$a2 isa warrior, has name "Doran",  has level 9,  has gold 110, has weapon "greatsword";
+$a3 isa mage,    has name "Sable",  has level 17, has gold 540, has element "frost";
+$a4 isa mage,    has name "Vael",   has level 6,  has gold 80,  has element "flame";
+$a5 isa rogue,   has name "Pip",    has level 11, has gold 230;
+$a6 isa rogue,   has name "Quill",  has level 13, has gold 410;
+
+# --- monsters & locations ------------------------------------
+insert
+$m1 isa monster, has name "Marsh Wyrm",   has danger 7;
+$m2 isa monster, has name "Cinder Golem",  has danger 9;
+$m3 isa monster, has name "Hollow King",   has danger 12;
+insert
+$l1 isa location, has name "Saltmere Fen", has terrain "swamp";
+$l2 isa location, has name "Ashfall Ridge", has terrain "mountain";
+$l3 isa location, has name "Underhollow",   has terrain "cavern";
+
+# --- guild memberships (match existing, then connect) --------
+match
+$g isa guild, has name "Ember Lanterns";
+$brae isa adventurer, has name "Brae";
+$sable isa adventurer, has name "Sable";
+$vael isa adventurer, has name "Vael";
+insert
+membership (member: $brae,  guild: $g);
+membership (member: $sable, guild: $g);
+membership (member: $vael,  guild: $g);
+
+match
+$g isa guild, has name "The Quiet Daggers";
+$pip isa adventurer, has name "Pip";
+$quill isa adventurer, has name "Quill";
+$doran isa adventurer, has name "Doran";
+insert
+membership (member: $pip,   guild: $g);
+membership (member: $quill, guild: $g);
+membership (member: $doran, guild: $g);
+
+# --- a friendship --------------------------------------------
+match
+$x isa adventurer, has name "Brae";
+$y isa adventurer, has name "Sable";
+insert
+friendship (friend: $x, friend: $y);
+
+# --- a party -------------------------------------------------
+match
+$brae isa adventurer, has name "Brae";
+$sable isa adventurer, has name "Sable";
+$pip isa adventurer, has name "Pip";
+insert
+party (companion: $brae, companion: $sable, companion: $pip);
+
+# --- quests (the N-ary relation: hunters + target + site) ----
+match
+$brae isa adventurer, has name "Brae";
+$sable isa adventurer, has name "Sable";
+$wyrm isa monster, has name "Marsh Wyrm";
+$fen isa location, has name "Saltmere Fen";
+insert
+quest (hunter: $brae, hunter: $sable, target: $wyrm, site: $fen),
+  has bounty 500, has completed true;
+
+match
+$pip isa adventurer, has name "Pip";
+$quill isa adventurer, has name "Quill";
+$king isa monster, has name "Hollow King";
+$hollow isa location, has name "Underhollow";
+insert
+quest (hunter: $pip, hunter: $quill, target: $king, site: $hollow),
+  has bounty 1200, has completed false;

@@ -1,0 +1,8 @@
+# local TypeDB data / server artefacts
+typedb-data/
+*.log
+
+# editor / OS noise
+.DS_Store
+.idea/
+.vscode/
