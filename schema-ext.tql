@@ -73,3 +73,31 @@ character plays rivalry:adversary;
 
 relation rivalry,
   relates adversary @card(2..2);
+
+# --- 5. paths: route string + total distance (hop-bounded) ---
+# For each realm reachable from $from within $hops steps, returns the
+# destination, the route as a readable string, AND the total distance.
+# Three things from ONE self-calling function. The $hops bound is what
+# guarantees termination on the cyclic road graph (plain `reachable`
+# could dedupe realms; an accumulating distance cannot, so we bound it).
+# Note: it does not dedupe cycles, so a large $hops can yield looping
+# routes — fold with `reduce min` (see queries-ext.tql #10) for shortest.
+define
+fun path_within($from: realm, $hops: integer) -> { realm, string, integer }:
+  match
+    {
+      # base case: a single road hop
+      road (endpoint: $from, endpoint: $to), has distance $d0;
+      $from has name $fn; $to has name $tn;
+      let $r = $fn + " -> " + $tn;
+      let $dd = $d0;
+    } or {
+      # step case: one hop, then recurse for the rest of the route
+      $hops > 1;
+      road (endpoint: $from, endpoint: $mid), has distance $d1;
+      $from has name $fn;
+      let $to, $subr, $subd in path_within($mid, $hops - 1);
+      let $r = $fn + " -> " + $subr;
+      let $dd = $d1 + $subd;
+    };
+  return { $to, $r, $dd };

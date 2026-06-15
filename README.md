@@ -50,6 +50,7 @@ python3 load.py queries-ext.tql read    # smoke-test all 8 advanced queries
 | **Multi-valued attrs** | a character owns several `epithet`s; `[ $c.epithet ]` collects them | no array column needed |
 | **Relations over relations** | `war` relates `battle`s, which are themselves relations | a join table can't hold a row whose members are rows |
 | **Rivalry on a shared field** | query 8 stacks a relation, an n-ary relation, and matches the same battle twice | — |
+| **Paths: route + distance** | `path_within($r, $hops)` returns destination, a route string, and total distance in one recursive function; `reduce min` gives the shortest | weighted pathfinding with the route, not just reachability |
 
 ## Run it
 

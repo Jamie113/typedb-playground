@@ -90,3 +90,25 @@ $bt isa battle, has name $bn;
 $bt links (combatant: $x);
 $bt links (combatant: $y);
 fetch { "rival": $xn, "faced_on_field": $yn, "at": $bn };
+
+
+# 9) PATHS — every route (up to 4 hops) from the Shire to Mordor,
+#    each with its total distance. ONE recursive function returns
+#    the destination, a readable route string, AND the summed
+#    distance. (Frodo's road: Shire -> Rivendell -> Gondor -> Mordor.)
+match
+$s isa realm, has name "The Shire";
+let $to, $route, $dist in path_within($s, 4);
+$to has name "Mordor";
+fetch { "route": $route, "leagues": $dist };
+
+
+# 10) SHORTEST PATH — fold those routes with `min` to get the
+#     shortest distance from the Shire to every reachable realm.
+#     `min` over all enumerated paths quietly discards any longer
+#     (looping) route, so the answer is the true shortest.
+match
+$s isa realm, has name "The Shire";
+let $to, $route, $dist in path_within($s, 4);
+$to has name $tn;
+reduce $shortest = min($dist) groupby $tn;
