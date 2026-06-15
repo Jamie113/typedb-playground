@@ -1,0 +1,101 @@
+# =============================================================
+#  Expansion data: genealogy, roads, epithets, the War of the Ring
+# =============================================================
+#  Load AFTER schema-ext.tql is committed. Use a "write" tx
+#  (load.py data-ext.tql write).
+# =============================================================
+
+# --- new characters: the line of Chieftains + Elrond's kin ----
+insert
+$arathorn isa man, has name "Arathorn", has age 60,  has title "Chieftain of the Dunedain";
+$arador   isa man, has name "Arador",   has age 90,  has title "Chieftain of the Dunedain";
+$argonui  isa man, has name "Argonui",  has age 100, has title "Chieftain of the Dunedain";
+$arassuil isa man, has name "Arassuil", has age 110, has title "Chieftain of the Dunedain";
+$earendil isa elf, has name "Earendil", has age 6500, has weapon "Silmaril";
+$arwen    isa elf, has name "Arwen",    has age 2901, has weapon "grace";
+
+# --- epithets: one character, MANY names (multi-valued attr) --
+match $a isa character, has name "Aragorn";
+insert $a has epithet "Strider", has epithet "Elessar", has epithet "Estel";
+
+match $g isa character, has name "Gandalf";
+insert $g has epithet "Mithrandir", has epithet "Stormcrow", has epithet "Greyhame";
+
+match $f isa character, has name "Frodo";
+insert $f has epithet "Ring-bearer";
+
+# --- genealogy: the line of Kings (Arassuil -> ... -> Aragorn) -
+match $p isa character, has name "Arassuil"; $c isa character, has name "Argonui";
+insert parentship (parent: $p, child: $c);
+match $p isa character, has name "Argonui"; $c isa character, has name "Arador";
+insert parentship (parent: $p, child: $c);
+match $p isa character, has name "Arador"; $c isa character, has name "Arathorn";
+insert parentship (parent: $p, child: $c);
+match $p isa character, has name "Arathorn"; $c isa character, has name "Aragorn";
+insert parentship (parent: $p, child: $c);
+
+# Elrond's branch: Earendil -> Elrond -> Arwen
+match $p isa character, has name "Earendil"; $c isa character, has name "Elrond";
+insert parentship (parent: $p, child: $c);
+match $p isa character, has name "Elrond"; $c isa character, has name "Arwen";
+insert parentship (parent: $p, child: $c);
+
+# --- roads: a realm network with a cycle (Rivendell-Rohan-Gondor) -
+match $a isa realm, has name "The Shire"; $b isa realm, has name "Rivendell";
+insert road (endpoint: $a, endpoint: $b), has distance 150;
+match $a isa realm, has name "Rivendell"; $b isa realm, has name "Rohan";
+insert road (endpoint: $a, endpoint: $b), has distance 220;
+match $a isa realm, has name "Rivendell"; $b isa realm, has name "Gondor";
+insert road (endpoint: $a, endpoint: $b), has distance 300;
+match $a isa realm, has name "Rohan"; $b isa realm, has name "Gondor";
+insert road (endpoint: $a, endpoint: $b), has distance 120;
+match $a isa realm, has name "Rohan"; $b isa realm, has name "Isengard";
+insert road (endpoint: $a, endpoint: $b), has distance 40;
+match $a isa realm, has name "Gondor"; $b isa realm, has name "Mordor";
+insert road (endpoint: $a, endpoint: $b), has distance 90;
+
+# --- date & outcome on the existing battle -------------------
+match $b isa battle, has name "Helm's Deep";
+insert $b has occurred 3019-03-03T00:00:00, has outcome "victory";
+
+# --- two more battles ----------------------------------------
+match
+$aragorn isa character, has name "Aragorn";
+$gandalf isa character, has name "Gandalf";
+$legolas isa character, has name "Legolas";
+$gimli   isa character, has name "Gimli";
+$gondor  isa realm, has name "Gondor";
+insert
+battle (combatant: $aragorn, combatant: $gandalf, combatant: $legolas, combatant: $gimli, site: $gondor),
+  has name "Pelennor Fields", has occurred 3019-03-15T00:00:00, has outcome "victory";
+
+match
+$aragorn isa character, has name "Aragorn";
+$gandalf isa character, has name "Gandalf";
+$gimli   isa character, has name "Gimli";
+$mordor  isa realm, has name "Mordor";
+insert
+battle (combatant: $aragorn, combatant: $gandalf, combatant: $gimli, site: $mordor),
+  has name "The Black Gate", has occurred 3019-03-25T00:00:00, has outcome "victory";
+
+# --- the War of the Ring: a relation OVER the three battles ---
+match
+$b1 isa battle, has name "Helm's Deep";
+$b2 isa battle, has name "Pelennor Fields";
+$b3 isa battle, has name "The Black Gate";
+insert
+war (engagement: $b1, engagement: $b2, engagement: $b3), has name "War of the Ring";
+
+# --- rivalries (symmetric enemies) ---------------------------
+match $a isa character, has name "Gandalf"; $b isa character, has name "Saruman";
+insert rivalry (adversary: $a, adversary: $b);
+match $a isa character, has name "Theoden"; $b isa character, has name "Saruman";
+insert rivalry (adversary: $a, adversary: $b);
+match $a isa character, has name "Aragorn"; $b isa character, has name "Saruman";
+insert rivalry (adversary: $a, adversary: $b);
+
+# Saruman drove the assault on Helm's Deep, so put him on that
+# field too — a battle's combatants span BOTH sides. This makes
+# him a co-combatant of his rivals, which query 8 exploits.
+match $bt isa battle, has name "Helm's Deep"; $s isa character, has name "Saruman";
+insert $bt links (combatant: $s);

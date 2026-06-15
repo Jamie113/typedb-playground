@@ -25,8 +25,31 @@ Tolkien's world lines up with TypeDB's three signature ideas almost perfectly:
 | `schema.tql`  | The races as subtypes of `character`; relations (fellowship, friendship, allegiance, quest, battle). |
 | `data.tql`    | Inserting characters/realms, then `match ... insert` to wire up the Fellowship, friendships, allegiances, the Quest. |
 | `queries.tql` | Polymorphic queries, N-ary relations, nested `fetch`, negation, and a `fun` (function/reasoning). |
+| `schema-ext.tql` | **Expansion schema:** genealogy (`parentship`), geography (`road`), a `war` relation *over battles*, multi-valued/`datetime` attributes, a `rivalry` relation, and two recursive functions. |
+| `data-ext.tql`   | **Expansion data:** the line of Kings, Elrond's kin, a road network (with a cycle), epithets, battle dates, the War of the Ring, rivalries. |
+| `queries-ext.tql`| **Advanced queries:** recursion, transitive closure, aggregation, multi-valued attributes, nested relations, and rivalry-on-a-shared-battlefield. |
 | `load.py`     | Loads a `.tql` file over the HTTP API, splitting it into its query blocks: `python3 load.py schema.tql schema`, `python3 load.py data.tql write`. |
 | `q.py`        | Runs a single query: `python3 q.py '<typeql>'` (read), or `--write` / `--schema` to change data/schema. |
+
+### The expansion layer (stretch goals)
+
+The `*-ext.tql` files push past the basics into TypeDB's distinctive
+capabilities. Load them *after* the base files:
+
+```bash
+python3 load.py schema-ext.tql schema
+python3 load.py data-ext.tql   write
+python3 load.py queries-ext.tql read    # smoke-test all 8 advanced queries
+```
+
+| Capability | Where to see it | Why it's hard elsewhere |
+|------------|-----------------|-------------------------|
+| **Recursion** | `ancestors($c)` walks a whole lineage from one self-calling function | no `WITH RECURSIVE` ceremony |
+| **Transitive closure** | `reachable($r)` follows the road graph any number of hops, terminating despite cycles | graph reachability in SQL is painful |
+| **Aggregation** | `reduce count(...), mean(...) groupby $t` — stats per race | — |
+| **Multi-valued attrs** | a character owns several `epithet`s; `[ $c.epithet ]` collects them | no array column needed |
+| **Relations over relations** | `war` relates `battle`s, which are themselves relations | a join table can't hold a row whose members are rows |
+| **Rivalry on a shared field** | query 8 stacks a relation, an n-ary relation, and matches the same battle twice | — |
 
 ## Run it
 

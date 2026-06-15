@@ -1,0 +1,75 @@
+# =============================================================
+#  Expansion layer for the Middle-earth world
+# =============================================================
+#  Load AFTER schema.tql + data.tql. Adds genealogy, geography,
+#  a war-over-battles, richer attributes, and recursive functions.
+#  Load in a "schema" transaction (load.py schema-ext.tql schema).
+# =============================================================
+
+# --- 1. new attributes + extend existing types ---------------
+define
+attribute epithet,    value string;      # a character can hold SEVERAL (multi-valued)
+attribute occurred, value datetime;     # when a battle happened
+attribute outcome,  value string;       # who won
+attribute distance, value integer;      # road length, in leagues
+
+# Characters gain epithetes and a place in a family tree.
+character owns epithet @card(0..),
+  plays parentship:parent,
+  plays parentship:child;
+
+# Realms become nodes in a road network.
+realm plays road:endpoint;
+
+# Battles gain a time, an outcome, and membership in a war.
+battle owns occurred,
+  owns outcome,
+  plays war:engagement;
+
+# --- 2. new relations ----------------------------------------
+relation parentship,
+  relates parent,
+  relates child;
+
+# A road links exactly two realms and is symmetric.
+relation road,
+  relates endpoint @card(2..2),
+  owns distance;
+
+# A war is a relation whose MEMBERS ARE BATTLES — a relation
+# playing in another relation. This is the nesting SQL can't model.
+relation war,
+  relates engagement @card(1..),
+  owns name;
+
+# --- 3. recursive functions (the reasoning showcase) ---------
+# Every forebear of $c: the direct parent, OR a parent's ancestor.
+define
+fun ancestors($c: character) -> { character }:
+  match
+    {
+      parentship (parent: $a, child: $c);
+    } or {
+      parentship (parent: $p, child: $c);
+      let $a in ancestors($p);
+    };
+  return { $a };
+
+# Every realm reachable from $from by following roads (transitive).
+define
+fun reachable($from: realm) -> { realm }:
+  match
+    {
+      road (endpoint: $from, endpoint: $to);
+    } or {
+      road (endpoint: $from, endpoint: $mid);
+      let $to in reachable($mid);
+    };
+  return { $to };
+
+# --- 4. rivalry layer: enemies (symmetric, like friendship) --
+define
+character plays rivalry:adversary;
+
+relation rivalry,
+  relates adversary @card(2..2);

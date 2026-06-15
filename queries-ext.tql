@@ -1,0 +1,92 @@
+# =============================================================
+#  Advanced queries against the expanded Middle-earth world
+# =============================================================
+#  Needs schema-ext.tql + data-ext.tql loaded. Run each block in
+#  a READ transaction. Every query here is verified on 3.11.x.
+#  These push past basic patterns into TypeDB's distinctive ideas:
+#  recursion, transitive closure, aggregation, multi-valued
+#  attributes, and relations nested inside relations.
+# =============================================================
+
+# 1) RECURSION — every forebear of Aragorn, not just his father.
+#    `ancestors` calls itself; one call walks the whole line of
+#    Kings (Arathorn -> Arador -> Argonui -> Arassuil).
+match
+$a isa character, has name "Aragorn";
+let $f in ancestors($a);
+$f has name $fn;
+fetch { "ancestor": $fn };
+
+
+# 2) TRANSITIVE CLOSURE — every realm you can reach from the
+#    Shire by following roads, however many hops. The road graph
+#    has a cycle (Rivendell-Rohan-Gondor); recursion still
+#    terminates (set-based fixpoint) and the Shire reaches itself.
+match
+$s isa realm, has name "The Shire";
+let $r in reachable($s);
+$r has name $rn;
+fetch { "reachable": $rn };
+
+
+# 3) AGGREGATION — count and mean age per race in one pass.
+#    `sub! character` means "direct subtypes only", so each race
+#    is its own group. `reduce ... groupby` is TypeQL's GROUP BY.
+match
+$c isa $t, has age $a;
+$t sub! character;
+reduce $count = count($c), $avg = mean($a) groupby $t;
+
+
+# 4) MULTI-VALUED ATTRIBUTE — one character owns SEVERAL epithets;
+#    `[ $c.epithet ]` collects them all into a JSON list.
+match
+$c isa character, has name $n, has epithet $e;
+fetch {
+  "name":     $n,
+  "epithets": [ $c.epithet ]
+};
+
+
+# 5) RELATION INSIDE A RELATION — `war` relates battles (which are
+#    themselves relations). One nested object models the whole
+#    campaign. No join table can hold a row whose members are rows.
+match
+$w isa war, has name $wn;
+$w links (engagement: $b);
+$b has name $bn, has outcome $o;
+fetch { "war": $wn, "battle": $bn, "outcome": $o };
+
+
+# 6) DATETIME — battles after 10 March 3019, newest data type in play.
+#    Datetime literals are written bare (no quotes), ISO-8601.
+match
+$b isa battle, has name $n, has occurred $d;
+$d > 3019-03-10T00:00:00;
+fetch { "battle": $n, "when": $d };
+
+
+# 7) NEGATION + N-ARY — who fought at Helm's Deep but was NOT in
+#    the Fellowship? (Theoden — the unsung defender.)
+match
+$bt isa battle, has name "Helm's Deep";
+$bt links (combatant: $c);
+$c has name $n;
+not { fellowship (member: $c); };
+fetch { "unsung_hero": $n };
+
+
+# 8) RIVALRY — characters who clashed with a rival ON A SHARED
+#    battlefield. Stacks three ideas: the `rivalry` relation, the
+#    n-ary `battle`, and matching the SAME battle for both people.
+#    `$xn < $yn` collapses the symmetric pair to one row.
+#    (Saruman drove Helm's Deep, where Theoden & Aragorn defended.)
+match
+$x has name $xn;
+$y has name $yn;
+$xn < $yn;
+rivalry (adversary: $x, adversary: $y);
+$bt isa battle, has name $bn;
+$bt links (combatant: $x);
+$bt links (combatant: $y);
+fetch { "rival": $xn, "faced_on_field": $yn, "at": $bn };
